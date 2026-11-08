@@ -1537,13 +1537,12 @@ function home() {
   return h('main', { class: 'scroll' }, h('div', { class: 'wrap' },
     h('span', { class: 'pill' }, icon('lock', 13), 'הקבצים לא יוצאים מהמחשב'),
     h('h1', { class: 'title' }, 'מה עושים היום עם ה-PDF?'),
-    h('p', { class: 'lead' }, 'בוחרים פעולה, מעלים קובץ ומורידים את התוצאה. הכול רץ ישירות בדפדפן, בלי הרשמה ובלי שרת.'),
     GROUPS.map(([g, label]) => [
       h('h2', { class: 'section-h' }, label),
       h('div', { class: 'tools' }, Object.entries(TOOLS).filter(([, t]) => t.group === g).map(([id, t]) =>
         h('a', { class: 'tool', href: `#${id}` },
           h('span', { class: 'tool-ic' }, icon(t.icon, 22)),
-          h('span', { class: 'tool-body' }, h('span', { class: 'tool-name' }, t.name), h('span', { class: 'tool-desc' }, t.desc))))),
+          h('span', { class: 'tool-body' }, h('span', { class: 'tool-name' }, t.name))))),
     ])));
 }
 
@@ -1572,7 +1571,7 @@ function toolScreen() {
   if (!S.files.length)
     return h('main', { class: 'scroll' }, h('div', { class: 'wrap narrow' },
       h('a', { class: 'back', href: '#' }, icon('arrowRight', 16), 'כל הכלים'),
-      h('div', { class: 'intro' }, h('span', { class: 'tool-ic lg' }, icon(t.icon, 26)), h('div', null, h('h1', { class: 'title' }, t.name), h('p', { class: 'lead' }, t.desc))),
+      h('div', { class: 'intro' }, h('span', { class: 'tool-ic lg' }, icon(t.icon, 26)), h('h1', { class: 'title' }, t.name)),
       dropzone(t)));
   S.ui.stage = h('section', { class: 'stage' });
   S.ui.panel = h('aside', { class: 'panel' });
