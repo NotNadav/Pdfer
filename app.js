@@ -12,7 +12,6 @@ const ICONS = {
   rotL: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   edit: '<path d="M12.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v9.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M13.378 15.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/>',
   hash: '<line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/>',
-  drop: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
   shrink: '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/>',
   image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   images: '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
@@ -32,7 +31,6 @@ const ICONS = {
   highlighter: '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
   pen: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
   undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
-  lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
 };
 
 const GROUPS = [['org', 'ארגון עמודים'], ['edit', 'עריכה ושיפור'], ['convert', 'המרה']];
@@ -688,27 +686,6 @@ function posPicker(v, set) {
     wrap.append(r);
   }
   return wrap;
-}
-
-function wmCenters(W, H, w, hgt, o) {
-  if (o.layout === 'center') return [[W / 2, H / 2]];
-  const t = (Math.abs(o.angle) * Math.PI) / 180;
-  const bw = w * Math.cos(t) + hgt * Math.sin(t), bh = w * Math.sin(t) + hgt * Math.cos(t);
-  const gx = bw + o.size * 1.2, gy = bh + o.size * 1.2;
-  const out = [];
-  for (let r = 0, y = gy / 2; y - bh / 2 < H && out.length < 600; y += gy, r++)
-    for (let x = r % 2 ? 0 : gx / 2; x - bw / 2 < W; x += gx) out.push([x, y]);
-  return out;
-}
-
-function drawWatermark() {
-  const pv = S.ui.pv, o = S.opt;
-  if (!pv?.scale) return;
-  pv.ov.replaceChildren();
-  if (!o.text.trim()) return;
-  const m = measure(o.text, o.size, o.bold);
-  for (const [cx, cy] of wmCenters(pv.w, pv.h, m.w, m.h, o))
-    pv.ov.append(ovText(o.text, cx, cy, o.size, o.color, o.opacity, o.angle, o.bold, pv.scale));
 }
 
 function splitGroups() {
@@ -1380,38 +1357,6 @@ const TOOLS = {
     },
   },
 
-  watermark: {
-    name: 'סימן מים', group: 'edit', icon: 'drop', action: 'הוספה והורדה',
-    desc: 'טקסט שקוף מעל כל העמודים, כמו "טיוטה" או "סודי".',
-    defaults: { text: 'טיוטה', size: 72, color: '#6d4aff', opacity: 0.2, angle: 45, layout: 'center', bold: true },
-    stage: () => previewStage(drawWatermark),
-    panel() {
-      const o = S.opt, upd = drawWatermark;
-      const opLabel = h('span', null, `${Math.round(o.opacity * 100)}%`);
-      return [
-        field('טקסט', textInput(o.text, 'טקסט הסימן', v => { o.text = v; upd(); renderFoot(); })),
-        field('פריסה', seg([['center', 'פעם אחת במרכז'], ['tile', 'על כל הדף']], o.layout, v => { o.layout = v; upd(); })),
-        field('זווית', seg([[0, '0°'], [45, '45°'], [-45, h('span', { dir: 'ltr' }, '-45°')], [90, '90°']], o.angle, v => { o.angle = v; upd(); })),
-        field('גודל', numInput(o.size, 8, 300, v => { o.size = v; upd(); })),
-        field('צבע', swatches(o.color, ['#6d4aff', '#e5484d', '#1d1a26', '#9a96a8', '#12a594'], v => { o.color = v; upd(); })),
-        h('div', { class: 'fld' }, h('span', { class: 'label' }, 'שקיפות · ', opLabel), rangeInput(o.opacity, 0.05, 1, 0.05, v => { o.opacity = v; opLabel.textContent = `${Math.round(v * 100)}%`; upd(); })),
-        check('טקסט מודגש', o.bold, v => { o.bold = v; upd(); }),
-      ];
-    },
-    summary: () => `יתווסף ל-${S.pages.length} עמודים`,
-    ready: () => !!S.opt.text.trim() || 'כתבו טקסט לסימן המים',
-    async run() {
-      const f = S.files[0], o = S.opt;
-      const t = await textImage(o.text, { size: o.size, color: o.color, bold: o.bold });
-      const doc = await libDoc(f), img = await doc.embedPng(t.bytes);
-      for (const page of doc.getPages()) {
-        const g = pageGeom(page);
-        for (const [cx, cy] of wmCenters(g.w, g.h, t.w, t.h, o)) page.drawImage(img, { ...placeAt(g, cx, cy, t.w, t.h, o.angle), opacity: o.opacity });
-      }
-      done(await doc.save(), `${baseName(f.name)}-watermark.pdf`);
-    },
-  },
-
   compress: {
     name: 'דחיסה', group: 'edit', icon: 'shrink', action: 'דחיסה והורדה',
     desc: 'הקטנת נפח הקובץ על ידי המרת העמודים לתמונות קלות יותר.',
@@ -1535,8 +1480,7 @@ function topbar() {
 
 function home() {
   return h('main', { class: 'scroll' }, h('div', { class: 'wrap' },
-    h('span', { class: 'pill' }, icon('lock', 13), 'הקבצים לא יוצאים מהמחשב'),
-    h('h1', { class: 'title' }, 'מה עושים היום עם ה-PDF?'),
+    h('h1', { class: 'title' }, 'חה חה חה, מו'),
     GROUPS.map(([g, label]) => [
       h('h2', { class: 'section-h' }, label),
       h('div', { class: 'tools' }, Object.entries(TOOLS).filter(([, t]) => t.group === g).map(([id, t]) =>
