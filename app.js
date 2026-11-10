@@ -968,7 +968,9 @@ function edEditText(d) {
   edSelect(el.id, true);
   d.querySelector('.h-resize')?.remove();
   d.classList.add('editing');
-  d.contentEditable = 'plaintext-only';
+  try {
+    d.contentEditable = 'plaintext-only';
+  } catch {}
   if (d.contentEditable !== 'plaintext-only') d.contentEditable = 'true';
   const s = E.scale, right = el.x + d.offsetWidth / s;
   d.oninput = () => {
@@ -1684,7 +1686,7 @@ let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    if (S.ui.ed?.wrap.isConnected) edRender();
+    if (S.ui.ed?.wrap.isConnected && !S.ed?.editing) edRender();
     if (S.ui.pv?.wrap.isConnected) renderPreview();
   }, 150);
 });
