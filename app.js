@@ -177,8 +177,8 @@ async function progress(text) {
 
 const libDoc = f => PDFDocument.load(f.bytes, { ignoreEncryption: true });
 
-async function pagesToPdf(list) {
-  const src = await libDoc(S.files[0]);
+async function pagesToPdf(list, src) {
+  src ||= await libDoc(S.files[0]);
   const out = await PDFDocument.create();
   const copied = await out.copyPages(src, list.map(p => p.index));
   copied.forEach((pg, i) => {
@@ -352,7 +352,7 @@ function loadThumb(img) {
         const c = await pageCanvas(img._file, img._index, 280 / Math.max(v.width, v.height));
         return c.toDataURL('image/jpeg', 0.82);
       })
-      .then(url => (thumbReady.set(k, url), url), () => '');
+      .then(url => (thumbReady.set(k, url), url), () => (thumbPending.delete(k), ''));
     thumbPending.set(k, thumbChain);
   }
   thumbPending.get(k).then(url => {
@@ -529,7 +529,7 @@ function fileGrid() {
     if (f.url) img.src = f.url;
     else setThumb(img, f, 0);
     const remove = () => {
-      S.files.splice(i, 1);
+      releaseFile(S.files.splice(i, 1)[0]);
       if (!S.files.length) return render();
       renderStage();
       renderFoot();
@@ -1222,9 +1222,10 @@ const TOOLS = {
       const list = S.pages.filter(p => p.sel), base = baseName(S.files[0].name);
       if (!S.opt.separate || list.length === 1) return done(await pagesToPdf(list), `${base}-extract.pdf`);
       const zip = new JSZip();
+      const src = await libDoc(S.files[0]);
       for (const [i, p] of list.entries()) {
         await progress(`מחלץ עמוד ${i + 1} מתוך ${list.length}…`);
-        zip.file(`${base}-p${p.index + 1}.pdf`, await pagesToPdf([p]));
+        zip.file(`${base}-p${p.index + 1}.pdf`, await pagesToPdf([p], src));
       }
       done(await zip.generateAsync({ type: 'blob' }), `${base}-pages.zip`);
     },
@@ -1564,12 +1565,13 @@ function render() {
 async function runTool() {
   const t = TOOLS[S.tool];
   if (S.busy || (t.ready && t.ready() !== true)) return;
+  const tool = S.tool;
   await progress('מעבד…');
   try {
     await t.run();
   } catch (e) {
     console.error(e);
-    toast('משהו השתבש בעיבוד הקובץ');
+    if (S.tool === tool) toast('משהו השתבש בעיבוד הקובץ');
   } finally {
     setBusy(null);
   }
@@ -1582,9 +1584,25 @@ function pickFiles() {
   inp.click();
 }
 
+function releaseFile(f) {
+  if (!f) return;
+  f.pdf?.destroy();
+  if (f.url) URL.revokeObjectURL(f.url);
+  for (const m of [thumbReady, thumbPending])
+    for (const k of [...m.keys()]) if (k.startsWith(`${f.id}:`)) m.delete(k);
+}
+
+function releaseAll() {
+  S.files.forEach(releaseFile);
+}
+
 async function loadPdfFile(f) {
   const bytes = new Uint8Array(await f.arrayBuffer());
   const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  try {
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+    if (doc.isEncrypted) toast(`הקובץ "${f.name}" מוצפן - ייתכן שהתוצאה לא תהיה תקינה`);
+  } catch {}
   return { id: uid(), name: f.name, size: f.size, bytes, pdf, n: pdf.numPages };
 }
 
@@ -1619,6 +1637,7 @@ async function addFiles(list) {
   if (!loaded.length) return;
   if (t.multi) S.files.push(...loaded);
   else {
+    releaseAll();
     S.files = loaded;
     S.view = 0;
     S.result = null;
@@ -1637,6 +1656,7 @@ function route() {
   const tool = TOOLS[id] ? id : null;
   if (tool !== S.tool) {
     S.tool = tool;
+    releaseAll();
     S.files = [];
     S.pages = [];
     S.view = 0;
